@@ -30,13 +30,14 @@ make deploy ARGS
 
 4. Get the IP of the EC2 Instance after it load everything correctly
 ```bash
-make get-ip
+make get-ip STACK_NAME='mystackname'
 ```
 
 5. Open a browser or curl the website on port 5000 (It might take a while so don't worry if it doesn't curl)
 ```bash
 open "http://IPv4:5000"
 ```
+
 ```bash
 curl "http://IPv4:5000"
 ```

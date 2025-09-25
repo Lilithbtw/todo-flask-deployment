@@ -25,7 +25,7 @@ deploy:
 get-ip:
 	@echo "Retrieving Public IP of the instance in stack: ${STACK_NAME}..."
 	aws cloudformation describe-stacks \
-	--stack-name ubuntu-flask-server \
+	--stack-name {STACK_NAME} \
 	--query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" \
 	--output text
 
