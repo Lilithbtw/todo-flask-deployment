@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy Ubuntu EC2 instance on AWS Free Tier with updated packages, SSH and HTTP access'
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+  
+  InstanceName:
+    Type: String
+    Default: 'MyUbuntuServer'
+    Description: Name tag for the EC2 instance
+    MinLength: 1
+    MaxLength: 255
+
+Resources:
+  # Security Group allowing SSH and HTTP access
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Ubuntu server with SSH and HTTP access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH access
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP access
+      Tags:
+        - Key: Name
+          Value: !Sub '${InstanceName}-SecurityGroup'
+
+  # EC2 Instance
+  UbuntuInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0e86e20dae9224db8  # Ubuntu 22.04 LTS (us-east-1) - update based on your region
+      InstanceType: t2.micro  # Free tier eligible
+      KeyName: !Ref KeyPairName
+      SecurityGroupIds:
+        - !Ref WebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Update package lists
+          apt-get update -y
+          
+          # Upgrade all packages
+          apt-get upgrade -y
+          
+          # Install additional useful packages
+          apt-get install -y curl wget unzip
+          
+          # Enable automatic security updates
+          apt-get install -y unattended-upgrades
+          
+          # Log completion
+          echo "System update and upgrade completed at $(date)" >> /var/log/user-data.log
+      Tags:
+        - Key: Name
+          Value: !Ref InstanceName
+        - Key: Environment
+          Value: Development
+        - Key: OS
+          Value: Ubuntu
+
+Outputs:
+  InstanceId:
+    Description: Instance ID of the newly created EC2 instance
+    Value: !Ref UbuntuInstance
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceId'
+
+  PublicIP:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt UbuntuInstance.PublicIp
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicIP'
+
+  PublicDNS:
+    Description: Public DNS name of the newly created EC2 instance
+    Value: !GetAtt UbuntuInstance.PublicDnsName
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicDNS'
+
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Sub 'ssh -i ${KeyPairName}.pem ubuntu@${UbuntuInstance.PublicIp}'
+
+  SecurityGroupId:
+    Description: Security Group ID
+    Value: !Ref WebServerSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'

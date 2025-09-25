@@ -1,0 +1,155 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy Ubuntu EC2 instance on AWS Free Tier with updated packages, SSH and HTTP access'
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+
+  InstanceName:
+    Type: String
+    Default: 'MyUbuntuFlaskServer'
+    Description: Name tag for the EC2 instance
+    MinLength: 1
+    MaxLength: 255
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC where the security group and instance will be created
+
+  UbuntuAMI:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+    Description: Latest Ubuntu 24.04 LTS AMI ID (auto-resolved per region)
+
+Resources:
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Ubuntu server with SSH and HTTP access
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH access
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          CidrIp: 0.0.0.0/0
+          Description: HTTP access
+      Tags:
+        - Key: Name
+          Value: !Sub '${InstanceName}-SecurityGroup'
+
+  UbuntuInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAMI
+      InstanceType: t3.micro
+      KeyName: !Ref KeyPairName
+      SecurityGroupIds:
+        - !Ref WebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Join
+          - ""
+          - - |
+              #!/bin/bash
+              # Update and upgrade packages
+              apt-get update -y
+              apt-get upgrade -y
+              
+              # Uninstall Apache if installed
+              apt-get remove -y apache2
+              apt-get autoremove -y
+
+              # Install dependencies for Docker
+              apt-get install -y curl ca-certificates git-all
+
+              # Add Docker GPG key and repo
+              install -m 0755 -d /etc/apt/keyrings
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+              chmod a+r /etc/apt/keyrings/docker.asc
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+              $(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}}) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+              
+              apt-get update -y
+              apt-get install -y unattended-upgrades docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+              systemctl enable --now docker
+              
+              # Create user for running web app
+              adduser --disabled-password --gecos "" webappuser
+              usermod -aG docker webappuser
+              chown -R webappuser:webappuser /home/webappuser
+
+              # Deploy Flask app
+              sudo -u webappuser bash -c '
+                # Git clone the repo and navigate into it
+                cd ~
+                git clone https://github.com/Lilithbtw/todo-flask-web.git
+                cd todo-flask-web
+
+                # Delete .env if it exists
+                rm -f .env
+
+                # Create and set environment variables
+                echo "MYSQL_USER=testing" >> .env
+                echo "MYSQL_PASSWORD=mark123" >> .env
+                echo "MYSQL_PORT=4444" >> .env
+                echo "MYSQL_ROOT_PASSWORD=Secure_Root_Pass" >> .env
+                echo "DATABSE_NAME=FlaskToDoDB" >> .env
+                
+                # Start the Flask app using Docker Compose
+                docker compose up -d --build
+              '
+              echo "Setup complete at $(date)" >> /var/log/user-data.log
+      Tags:
+        - Key: Name
+          Value: !Ref InstanceName
+        - Key: Environment
+          Value: Development
+        - Key: OS
+          Value: Ubuntu
+
+Outputs:
+  InstanceId:
+    Description: Instance ID of the newly created EC2 instance
+    Value: !Ref UbuntuInstance
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceId'
+
+  PublicIP:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt UbuntuInstance.PublicIp
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicIP'
+
+  PublicDNS:
+    Description: Public DNS name of the newly created EC2 instance
+    Value: !GetAtt UbuntuInstance.PublicDnsName
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicDNS'
+
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Join
+      - ""
+      - - "ssh -i "
+        - !Ref KeyPairName
+        - ".pem ubuntu@"
+        - !GetAtt UbuntuInstance.PublicIp
+
+  SecurityGroupId:
+    Description: Security Group ID
+    Value: !Ref WebServerSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+
+  WebAppURL:
+    Description: URL to access the Flask web application
+    Value: !Join
+      - ""
+      - - "http://"
+        - !GetAtt UbuntuInstance.PublicIp
