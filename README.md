@@ -25,7 +25,7 @@ aws configure
 
 3. Create the stack and wait for it to load
 ```bash
-make deploy ARGS
+make deploy STACK_NAME='mystackname' FILE_LOC='template.yaml' KEY_PAIR='mykeypair' INSTANCE_NAME='MyWebServer' VPC_ID='insert_id_here'
 ```
 
 4. Get the IP of the EC2 Instance after it load everything correctly
