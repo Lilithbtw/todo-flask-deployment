@@ -25,21 +25,12 @@ aws configure
 
 3. Create the stack and wait for it to load
 ```bash
-aws cloudformation create-stack \
-  --stack-name ubuntu-flask-server \
-  --template-body file://template.yaml \
-  --parameters \
-    ParameterKey=KeyPairName,ParameterValue=my-ubuntu-key \
-    ParameterKey=InstanceName,ParameterValue=MyUbuntuFlaskServer \
-    ParameterKey=VpcId,ParameterValue=vpc-0ebcddd98956ef267
+make deploy ARGS
 ```
 
 4. Get the IP of the EC2 Instance after it load everything correctly
 ```bash
-aws cloudformation describe-stacks \
-  --stack-name ubuntu-flask-server \
-  --query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" \
-  --output text
+make get-ip
 ```
 
 5. Open a browser or curl the website on port 5000 (It might take a while so don't worry if it doesn't curl)

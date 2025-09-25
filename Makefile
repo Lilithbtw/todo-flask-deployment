@@ -8,7 +8,7 @@ KEY_PAIR ?= my-ubuntu-key
 INSTANCE_NAME ?= MyUbuntuFlaskServer
 VPC_ID ?= vpc-0ebcddd98956ef267
 
-.PHONY: deploy clean
+.PHONY: deploy clean get-ip
 
 deploy:
 	@echo "Creating CloudFormation stack: ${STACK_NAME}..."
@@ -21,6 +21,14 @@ deploy:
 			ParameterKey=VpcId,ParameterValue=${VPC_ID}
 	@echo "Stack creation requested. You can monitor it with:"
 	@echo "aws cloudformation describe-stacks --stack-name ${STACK_NAME}"
+
+get-ip:
+	@echo "Retrieving Public IP of the instance in stack: ${STACK_NAME}..."
+	aws cloudformation describe-stacks \
+	--stack-name ubuntu-flask-server \
+	--query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" \
+	--output text
+
 
 clean:
 	@echo "Deleting CloudFormation stack: ${STACK_NAME}..."
