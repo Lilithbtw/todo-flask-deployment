@@ -2,8 +2,10 @@
 This is the deployment of the following repository https://github.com/lilithbtw/todo-flask-web it is deployed using AWS CloudFormation
 
 
-## Requierements
+## Notice
+claude.yaml is the file that claude generated and i used as a template
 
+## Requierements
 You must install the following dependencies:
 - AWS-CLI
 - curl or any web browser
