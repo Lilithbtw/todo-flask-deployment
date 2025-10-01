@@ -105,20 +105,20 @@ Resources:
                 docker compose up -d --build
               '
               echo "Setup complete at $(date)" >> /var/log/user-data.log
-      Tags:
-        - Key: Name
-          Value: !Ref InstanceName
-        - Key: Environment
-          Value: Development
-        - Key: OS
-          Value: Ubuntu
+  Tags:
+    - Key: Name
+      Value: !Ref InstanceName
+    - Key: Environment
+      Value: Development
+    - Key: OS
+      Value: Ubuntu
 
-Outputs:
-  InstanceId:
-    Description: Instance ID of the newly created EC2 instance
-    Value: !Ref UbuntuInstance
-    Export:
-      Name: !Sub '${AWS::StackName}-InstanceId'
+  Outputs:
+    InstanceId:
+      Description: Instance ID of the newly created EC2 instance
+      Value: !Ref UbuntuInstance
+      Export:
+        Name: !Sub '${AWS::StackName}-InstanceId'
 
   PublicIP:
     Description: Public IP address of the newly created EC2 instance
